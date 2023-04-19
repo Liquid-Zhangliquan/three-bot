@@ -1,6 +1,17 @@
 <template>
   <div class="home-container">
     <div class="three-box" id="bot-container"></div>
+    <div class="panle-form">
+      <el-input v-model="order" placeholder="请输入指令" type="textarea"></el-input>
+      <div class="form-footer">
+        <el-button type="primary" @click="sendOrder">发送指令</el-button>
+        <el-button @click="clearOrder">清空指令</el-button>
+      </div>
+    </div>
+    <div class="panle-export" v-show="showResult">
+      输出结果
+      <el-input v-model="result" disabled placeholder="" type="textarea"></el-input>
+    </div>
   </div>
 </template>
 
@@ -9,15 +20,19 @@ import * as THREE from 'three';
 // import '@/utils/loader/GLTFloader';
 require('@/utils/loader/GLTFloader');
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-let scene = null,
-  light = null,
-  camera = null,
-  renderer = null;
+// let scene = null,
+//   light = null,
+//   camera = null,
+//   renderer = null;
 export default {
   name: '',
   components: {},
   data() {
-    return {};
+    return {
+      order: '',
+      showResult: false,
+      result: '',
+    };
   },
   watch: {},
   created() {},
@@ -28,15 +43,15 @@ export default {
     init() {
       let container = document.getElementById('bot-container');
       // 相机
-      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+      window.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
       camera.position.set(-385, 244, 63);
       camera.lookAt(new THREE.Vector3(0, 0, 0));
       camera.add(new THREE.PointLight('#fff', 4));
       window.camera = camera;
       // 场景
-      scene = new THREE.Scene();
+      window.scene = new THREE.Scene();
       // 光源
-      light = new THREE.DirectionalLight(0xffffff);
+      let light = new THREE.DirectionalLight(0xffffff);
       light.position.set(0, -10, 10).normalize();
       scene.add(light);
 
@@ -59,7 +74,7 @@ export default {
       }
 
       // 初始化渲染器
-      renderer = new THREE.WebGLRenderer({ antialias: true });
+      window.renderer = new THREE.WebGLRenderer({ antialias: true });
       // 渲染器的大小
       renderer.setSize(container.clientWidth, container.clientHeight);
       // 将渲染器添加到页面
@@ -71,28 +86,48 @@ export default {
       OrbitControl.enableDamping = true;
       // 设置惯性
       OrbitControl.update();
-      this.addGltf();
+      this.animate();
+      this.loadGltf();
     },
-    addGltf() {
+    loadGltf() {
       let loader = new THREE.GLTFLoader();
       loader.load(
         'data/RobotExpressive.glb',
         (gltf) => {
-          debugger;
           let model = gltf.scene;
-          window.model = model;
-          // model.rotation.x = Math.PI / 2;
+          window.model = model; // 存储gltf模型备用
           model.scale.set(10, 10, 10);
-          model.position.copy(new THREE.Vector3(0, 0, 0)); // 坐标原点 西南角 x:50代表北方向1格 z:50代表东方向1格子
-          scene.add(model);
           // this.createGUI(model, gltf.animations);
-          this.animate();
         },
         undefined,
         (e) => {
           console.error(e);
         }
       );
+    },
+    addGltf(x, y, direction) {
+      const rotationY = this.getPosiotnYBydirection(direction);
+      model.rotation.y = rotationY; // 沿y轴旋转方向 默认正东为模型初始方向
+      model.position.copy(new THREE.Vector3(y * 50, 0, x * 50)); // 坐标原点 西南角 x:50代表北方向1格 z:50代表东方向1格子
+      scene.add(model);
+    },
+    getPosiotnYBydirection(direction) {
+      let rotationY = null;
+      switch (direction) {
+        case 'NORTH':
+          rotationY = 0;
+          break;
+        case 'WEST':
+          rotationY = Math.PI;
+          break;
+        case 'SOUTH':
+          rotationY = -Math.PI / 2;
+          break;
+        case 'EAST':
+          rotationY = Math.PI / 2;
+          break;
+      }
+      return rotationY;
     },
     createGUI(model, animations) {
       var states = ['Idle', 'Walking', 'Running', 'Dance', 'Death', 'Sitting', 'Standing'];
@@ -179,13 +214,43 @@ export default {
 
       expressionFolder.open();
     },
-
     animate() {
       // 浏览器自动渲染下一帧
       requestAnimationFrame(this.animate);
 
       // 渲染到页面
       renderer.render(scene, camera);
+    },
+    sendOrder() {
+      console.log(this.order);
+      this.testRule(this.order);
+      this.showResult = true;
+    },
+    testRule() {
+      const conditions = this.order.split('\n');
+      let flag = false; // 需要遇到PLACE 语句才能正常执行指令
+      conditions.map((condition) => {
+        if (condition.includes('PLACE')) {
+          flag = true;
+          const section = condition.split(' ');
+          const [x, y, direction] = section[1].split(',');
+          const task = this.testPosition(Number(x), Number(y), direction);
+          if (task) {
+            this.addGltf(Number(x), Number(y), direction);
+          }
+        }
+        if (flag) {
+        }
+      });
+    },
+    // 验证位置是否满足要求 需要满足在5*5的方格之内
+    testPosition(z, x, direction) {
+      return true;
+    },
+    clearOrder() {
+      this.order = '';
+      scene.remove(model);
+      this.showResult = false;
     },
   },
   destroyed() {},
@@ -199,6 +264,43 @@ export default {
   .three-box {
     width: 100%;
     height: 100%;
+  }
+  .panle-form {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    background: #cccc;
+    border-radius: 5px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    textarea {
+      width: 260px;
+      height: 200px;
+    }
+    .form-footer {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+    }
+  }
+  .panle-export {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    background: #cccc;
+    border-radius: 5px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    textarea {
+      width: 260px;
+      height: 100px;
+    }
   }
 }
 </style>
