@@ -20,10 +20,6 @@ import * as THREE from 'three';
 // import '@/utils/loader/GLTFloader';
 require('@/utils/loader/GLTFloader');
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-// let scene = null,
-//   light = null,
-//   camera = null,
-//   renderer = null;
 export default {
   name: '',
   components: {},
@@ -32,6 +28,8 @@ export default {
       order: '',
       showResult: false,
       result: '',
+      model: null,
+      gltf: null,
     };
   },
   watch: {},
@@ -88,46 +86,6 @@ export default {
       OrbitControl.update();
       this.animate();
       this.loadGltf();
-    },
-    loadGltf() {
-      let loader = new THREE.GLTFLoader();
-      loader.load(
-        'data/RobotExpressive.glb',
-        (gltf) => {
-          let model = gltf.scene;
-          window.model = model; // 存储gltf模型备用
-          model.scale.set(10, 10, 10);
-          // this.createGUI(model, gltf.animations);
-        },
-        undefined,
-        (e) => {
-          console.error(e);
-        }
-      );
-    },
-    addGltf(x, y, direction) {
-      const rotationY = this.getPosiotnYBydirection(direction);
-      model.rotation.y = rotationY; // 沿y轴旋转方向 默认正东为模型初始方向
-      model.position.copy(new THREE.Vector3(y * 50, 0, x * 50)); // 坐标原点 西南角 x:50代表北方向1格 z:50代表东方向1格子
-      scene.add(model);
-    },
-    getPosiotnYBydirection(direction) {
-      let rotationY = null;
-      switch (direction) {
-        case 'NORTH':
-          rotationY = 0;
-          break;
-        case 'WEST':
-          rotationY = Math.PI;
-          break;
-        case 'SOUTH':
-          rotationY = -Math.PI / 2;
-          break;
-        case 'EAST':
-          rotationY = Math.PI / 2;
-          break;
-      }
-      return rotationY;
     },
     createGUI(model, animations) {
       var states = ['Idle', 'Walking', 'Running', 'Dance', 'Death', 'Sitting', 'Standing'];
@@ -221,31 +179,198 @@ export default {
       // 渲染到页面
       renderer.render(scene, camera);
     },
+    loadGltf() {
+      let loader = new THREE.GLTFLoader();
+      loader.load(
+        'data/RobotExpressive.glb',
+        (gltf) => {
+          let model = gltf.scene;
+          this.gltf = gltf; // 存储gltf模型备用
+          this.model = model;
+          this.model.scale.set(10, 10, 10);
+          window.model = model;
+          // this.createGUI(model, gltf.animations);
+        },
+        undefined,
+        (e) => {
+          console.error(e);
+        }
+      );
+    },
+    /**
+     * 添加模型
+     */
+    addGltf(x, y, direction) {
+      if (!this.model) {
+        this.$message.error('模型未加载成功');
+        return;
+      }
+      const model = this.setModelPositon(x, y, direction);
+      scene.add(model);
+    },
+    /**
+     * 根据方向设置模型旋转角度
+     */
+    getPosiotnYBydirection(direction) {
+      let rotationY = null;
+      switch (direction) {
+        case 'NORTH':
+          rotationY = 0;
+          break;
+        case 'WEST':
+          rotationY = Math.PI;
+          break;
+        case 'SOUTH':
+          rotationY = -Math.PI / 2;
+          break;
+        case 'EAST':
+          rotationY = Math.PI / 2;
+          break;
+      }
+      return rotationY;
+    },
+    /**
+     * 设置模型位置
+     */
+    setModelPositon(x, y, direction) {
+      const rotationY = this.getPosiotnYBydirection(direction);
+      this.model['direction'] = direction;
+      this.model.rotation.y = rotationY; // 沿y轴旋转方向 默认正东为模型初始方向
+      this.model.position.copy(new THREE.Vector3(y * 50, 0, x * 50)); //Vector3(x,y,z) 坐标原点 西南角 x:50代表北方向1格 z:50代表东方向1格子
+      return this.model;
+    },
+    /**
+     * 向前前进一格
+     */
+    moveDirection() {
+      const { direction } = this.model;
+      let { x, z } = this.model.position;
+      x = x / 50;
+      z = z / 50;
+      switch (direction) {
+        case 'NORTH':
+          x = x + 1;
+          break;
+        case 'WEST':
+          z = z - 1;
+          break;
+        case 'SOUTH':
+          x = x - 1;
+          break;
+        case 'EAST':
+          z = z + 1;
+          break;
+      }
+      return {
+        mx: x,
+        my: z,
+        mDirection: direction,
+      };
+    },
+    /**
+     * 改变模型前进方向
+     */
+    changeDirection(action) {
+      let { direction } = this.model;
+      switch (direction) {
+        case 'NORTH':
+          action === 'LEFT' ? (direction = 'WEST') : (direction = 'EAST');
+          break;
+        case 'WEST':
+          action === 'LEFT' ? (direction = 'SOUTH') : (direction = 'NORTH');
+          break;
+        case 'SOUTH':
+          action === 'LEFT' ? (direction = 'EAST') : (direction = 'WEST');
+          break;
+        case 'EAST':
+          action === 'LEFT' ? (direction = 'NORTH') : (direction = 'SOUTH');
+          break;
+      }
+      this.model['direction'] = direction;
+    },
+    exportPostion() {
+      this.showResult = true;
+      const { direction } = this.model;
+      let { x, z } = this.model.position;
+      x = x / 50;
+      z = z / 50;
+      this.result = `${x},${z},${direction}`;
+    },
     sendOrder() {
       console.log(this.order);
       this.testRule(this.order);
-      this.showResult = true;
     },
     testRule() {
-      const conditions = this.order.split('\n');
-      let flag = false; // 需要遇到PLACE 语句才能正常执行指令
-      conditions.map((condition) => {
-        if (condition.includes('PLACE')) {
-          flag = true;
-          const section = condition.split(' ');
-          const [x, y, direction] = section[1].split(',');
-          const task = this.testPosition(Number(x), Number(y), direction);
-          if (task) {
+      const instructs = this.order.split('\n');
+      let DoTask = false; // 是否执行指令表示
+      for (let i = 0; i < instructs.length; i++) {
+        const instruct = instructs[i];
+        if (instruct.includes('PLACE')) DoTask = true;
+        if (!DoTask) continue;
+        // 没有放置到桌面上的机器人应当忽略 MOVE、LEFT、RIGHT 和 EXPORT 命令
+        console.log(instruct);
+        const action = this.getAction(instruct);
+        switch (action) {
+          case 'PLACE':
+            const section = instruct.split(' ');
+            const [x, y, direction] = section[1].split(',');
+            if (!this.testPosition(Number(x), Number(y))) return;
             this.addGltf(Number(x), Number(y), direction);
-          }
+            break;
+          case 'MOVE':
+            const { mx, my, mDirection } = this.moveDirection();
+            if (!this.testPosition(mx, my)) return;
+            this.setModelPositon(mx, my, mDirection);
+            break;
+          case 'LEFT':
+          case 'RIGHT':
+            this.changeDirection(action);
+            break;
+          case 'EXPORT':
+            this.exportPostion();
+            break;
         }
-        if (flag) {
-        }
-      });
+      }
+      // instructs.map((instruct) => {
+      //   if (instruct.includes('PLACE')) {
+      //     flag = true;
+      //     const section = instruct.split(' ');
+      //     const [x, y, direction] = section[1].split(',');
+      //     const task = this.testPosition(Number(x), Number(y));
+      //     if (task) {
+      //       this.addGltf(Number(x), Number(y), direction);
+      //     } else {
+      //       this.clearOrder();
+      //     }
+      //   }
+      //   if (flag) {
+      //   }
+      // });
     },
-    // 验证位置是否满足要求 需要满足在5*5的方格之内
-    testPosition(z, x, direction) {
-      return true;
+    /**
+     * 获取指令
+     * @param {*} instruct
+     * PLACE MOVE LEFT RIGHT REPORT
+     */
+    getAction(instruct) {
+      const action = instruct.split(' ')[0];
+      return action;
+    },
+    /**
+     * 验证位置是否满足要求 需要满足在5*5的方格之内
+     * @param {*} x
+     * @param {*} y
+     */
+    testPosition(x, y) {
+      let xflag = false;
+      if (0 <= x && x <= 5) xflag = true;
+      let yflag = false;
+      if (0 <= y && y <= 5) yflag = true;
+      let flag = xflag && yflag;
+      if (!flag) {
+        this.$message.info('坐标超出范围');
+      }
+      return flag;
     },
     clearOrder() {
       this.order = '';
