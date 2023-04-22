@@ -208,7 +208,7 @@ export default {
       let flag = xflag && yflag;
       if (!flag) {
         this.$message.info('初始放置或者运动过程中坐标超出范围');
-        this.clearOrder();
+        // this.clearOrder();
       }
       return flag;
     },

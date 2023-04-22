@@ -60,8 +60,8 @@ export default {
         scene.add(line);
       }
       // 创建桌面
-      var groundGeom = new THREE.PlaneGeometry(250, 250, 4, 4);
-      var groundMesh = new THREE.Mesh(groundGeom, new THREE.MeshBasicMaterial({ color: 0x777777 }));
+      let groundGeom = new THREE.PlaneGeometry(250, 250, 4, 4);
+      let groundMesh = new THREE.Mesh(groundGeom, new THREE.MeshBasicMaterial({ color: 0x777777 }));
       groundMesh.rotation.x = -Math.PI / 2;
       groundMesh.position.copy(new THREE.Vector3(125, 0, 125));
       window.groundMesh = groundMesh;
@@ -83,91 +83,6 @@ export default {
       this.animate();
       this.loadGltf();
     },
-    createGUI(model, animations) {
-      var states = ['Idle', 'Walking', 'Running', 'Dance', 'Death', 'Sitting', 'Standing'];
-      var emotes = ['Jump', 'Yes', 'No', 'Wave', 'Punch', 'ThumbsUp'];
-      var api = { state: 'Walking' };
-      let previousAction = null;
-      let gui = new dat.GUI();
-
-      let mixer = new THREE.AnimationMixer(model);
-
-      let actions = {};
-
-      for (var i = 0; i < animations.length; i++) {
-        var clip = animations[i];
-        var action = mixer.clipAction(clip);
-        actions[clip.name] = action;
-
-        if (emotes.indexOf(clip.name) >= 0 || states.indexOf(clip.name) >= 4) {
-          action.clampWhenFinished = true;
-          action.loop = THREE.LoopOnce;
-        }
-      }
-
-      // states
-
-      var statesFolder = gui.addFolder('States');
-
-      var clipCtrl = statesFolder.add(api, 'state').options(states);
-
-      clipCtrl.onChange(function () {
-        fadeToAction(api.state, 0.5);
-      });
-
-      statesFolder.open();
-
-      // emotes
-
-      var emoteFolder = gui.addFolder('Emotes');
-
-      function fadeToAction(name, duration) {
-        previousAction = activeAction;
-        activeAction = actions[name];
-        if (previousAction !== activeAction) {
-          previousAction.fadeOut(duration);
-        }
-        activeAction.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(duration).play();
-      }
-
-      function createEmoteCallback(name) {
-        api[name] = function () {
-          fadeToAction(name, 0.2);
-
-          mixer.addEventListener('finished', restoreState);
-        };
-
-        emoteFolder.add(api, name);
-      }
-
-      function restoreState() {
-        mixer.removeEventListener('finished', restoreState);
-
-        fadeToAction(api.state, 0.2);
-      }
-
-      for (var i = 0; i < emotes.length; i++) {
-        createEmoteCallback(emotes[i]);
-      }
-
-      emoteFolder.open();
-
-      // expressions
-
-      let face = model.getObjectByName('Head_2');
-
-      var expressions = Object.keys(face.morphTargetDictionary);
-      var expressionFolder = gui.addFolder('Expressions');
-
-      for (var i = 0; i < expressions.length; i++) {
-        expressionFolder.add(face.morphTargetInfluences, i, 0, 1, 0.01).name(expressions[i]);
-      }
-
-      let activeAction = actions['Walking'];
-      activeAction.play();
-
-      expressionFolder.open();
-    },
     animate() {
       // 浏览器自动渲染下一帧
       requestAnimationFrame(this.animate);
@@ -185,7 +100,6 @@ export default {
           this.model.scale.set(10, 10, 10);
           window.model = model;
           this.$emit('ready', { model, gltf });
-          // this.createGUI(model, gltf.animations);
         },
         undefined,
         (e) => {
