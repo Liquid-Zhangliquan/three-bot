@@ -15,7 +15,7 @@ export default {
     };
   },
   watch: {},
-  created() {},
+  created() { },
   mounted() {
     this.init();
   },
@@ -43,7 +43,7 @@ export default {
       // scene.add(ambientLight);
 
       // 坐标轴
-      let axesHelper = new THREE.AxesHelper(100);
+      let axesHelper = new THREE.AxesHelper(250);
       scene.add(axesHelper);
       // 创建网格
       var geometry = new THREE.Geometry();
@@ -60,7 +60,7 @@ export default {
         scene.add(line);
       }
       // 创建桌面
-      let groundGeom = new THREE.PlaneGeometry(250, 250, 4, 4);
+      let groundGeom = new THREE.PlaneGeometry(250, 250, 1, 1);
       let groundMesh = new THREE.Mesh(groundGeom, new THREE.MeshBasicMaterial({ color: 0x777777 }));
       groundMesh.rotation.x = -Math.PI / 2;
       groundMesh.position.copy(new THREE.Vector3(125, 0, 125));
@@ -108,7 +108,7 @@ export default {
       );
     },
   },
-  destroyed() {},
+  destroyed() { },
 };
 </script>
 
